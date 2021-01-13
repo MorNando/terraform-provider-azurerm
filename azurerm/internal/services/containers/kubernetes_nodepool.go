@@ -2,6 +2,7 @@ package containers
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2020-09-01/containerservice"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -108,6 +109,10 @@ func SchemaDefaultNodePool() *schema.Schema {
 					Optional: true,
 					Elem: &schema.Schema{
 						Type: schema.TypeString,
+						ValidateFunc: validation.StringMatch(
+							regexp.MustCompile("^(CriticalAddonsOnly=(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?:(NoSchedule|PreferNoSchedule|NoExecute)|(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])=(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?:PreferNoSchedule)$"),
+							"Only 'CriticalAddonsOnly' taints or taints with 'PreferNoShedule' effect are supported on the default nodepool.",
+						),
 					},
 				},
 
@@ -177,10 +182,6 @@ func ExpandDefaultNodePool(d *schema.ResourceData) (*[]containerservice.ManagedC
 	nodeTaintsRaw := raw["node_taints"].([]interface{})
 	nodeTaints := utils.ExpandStringSlice(nodeTaintsRaw)
 
-	if len(*nodeTaints) != 0 {
-		return nil, fmt.Errorf("The AKS API has removed support for tainting all nodes in the default node pool and it is no longer possible to configure this. To taint a node pool, create a separate one")
-	}
-
 	t := raw["tags"].(map[string]interface{})
 
 	profile := containerservice.ManagedClusterAgentPoolProfile{
@@ -188,6 +189,7 @@ func ExpandDefaultNodePool(d *schema.ResourceData) (*[]containerservice.ManagedC
 		EnableNodePublicIP: utils.Bool(raw["enable_node_public_ip"].(bool)),
 		Name:               utils.String(raw["name"].(string)),
 		NodeLabels:         nodeLabels,
+		NodeTaints:         nodeTaints,
 		Tags:               tags.Expand(t),
 		Type:               containerservice.AgentPoolType(raw["type"].(string)),
 		VMSize:             containerservice.VMSizeTypes(raw["vm_size"].(string)),
@@ -341,6 +343,11 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 		}
 	}
 
+	var nodeTaints []string
+	if agentPool.NodeTaints != nil {
+		nodeTaints = *agentPool.NodeTaints
+	}
+
 	osDiskSizeGB := 0
 	if agentPool.OsDiskSizeGB != nil {
 		osDiskSizeGB = int(*agentPool.OsDiskSizeGB)
@@ -367,7 +374,7 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 			"name":                  name,
 			"node_count":            count,
 			"node_labels":           nodeLabels,
-			"node_taints":           []string{},
+			"node_taints":           nodeTaints,
 			"os_disk_size_gb":       osDiskSizeGB,
 			"tags":                  tags.Flatten(agentPool.Tags),
 			"type":                  string(agentPool.Type),
