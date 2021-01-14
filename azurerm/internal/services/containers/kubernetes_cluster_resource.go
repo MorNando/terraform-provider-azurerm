@@ -265,6 +265,17 @@ func resourceArmKubernetesCluster() *schema.Resource {
 							}, false),
 						},
 
+						"network_mode": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+							ForceNew: true,
+							ValidateFunc: validation.StringInSlice([]string{
+								string(containerservice.Bridge),
+								string(containerservice.Transparent),
+							}, false),
+						},
+
 						"network_policy": {
 							Type:     schema.TypeString,
 							Optional: true,
@@ -1453,6 +1464,10 @@ func expandKubernetesClusterNetworkProfile(input []interface{}) (*containerservi
 	config := input[0].(map[string]interface{})
 
 	networkPlugin := config["network_plugin"].(string)
+	networkMode := config["network_mode"].(string)
+	if networkPlugin != "azure" && networkMode != "" {
+		return nil, fmt.Errorf("`network_mode` cannot be set if `network_plugin` is not `azure`")
+	}
 	networkPolicy := config["network_policy"].(string)
 	loadBalancerProfileRaw := config["load_balancer_profile"].([]interface{})
 	loadBalancerSku := config["load_balancer_sku"].(string)
@@ -1460,6 +1475,7 @@ func expandKubernetesClusterNetworkProfile(input []interface{}) (*containerservi
 
 	networkProfile := containerservice.NetworkProfileType{
 		NetworkPlugin:   containerservice.NetworkPlugin(networkPlugin),
+		NetworkMode:     containerservice.NetworkMode(networkMode),
 		NetworkPolicy:   containerservice.NetworkPolicy(networkPolicy),
 		LoadBalancerSku: containerservice.LoadBalancerSku(loadBalancerSku),
 		OutboundType:    containerservice.OutboundType(outboundType),
@@ -1636,6 +1652,7 @@ func flattenKubernetesClusterNetworkProfile(profile *containerservice.NetworkPro
 			"load_balancer_sku":     string(profile.LoadBalancerSku),
 			"load_balancer_profile": lbProfiles,
 			"network_plugin":        string(profile.NetworkPlugin),
+			"network_mode":          string(profile.NetworkMode),
 			"network_policy":        string(profile.NetworkPolicy),
 			"pod_cidr":              podCidr,
 			"service_cidr":          serviceCidr,
