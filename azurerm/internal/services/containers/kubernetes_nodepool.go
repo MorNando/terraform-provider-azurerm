@@ -164,6 +164,12 @@ func SchemaDefaultNodePool() *schema.Schema {
 					ForceNew:     true,
 					ValidateFunc: computeValidate.ProximityPlacementGroupID,
 				},
+				"only_critical_addons_enabled": {
+					Type:       schema.TypeBool,
+					Optional:   true,
+					ForceNew:   true,
+					Deprecated: "deprecated in favor of `node_taints`.",
+				},
 			},
 		},
 	}
@@ -209,6 +215,15 @@ func ExpandDefaultNodePool(d *schema.ResourceData) (*[]containerservice.ManagedC
 	nodeLabels := utils.ExpandMapStringPtrString(nodeLabelsRaw)
 	nodeTaintsRaw := raw["node_taints"].([]interface{})
 	nodeTaints := utils.ExpandStringSlice(nodeTaintsRaw)
+
+	criticalAddonsEnabled := raw["only_critical_addons_enabled"].(bool)
+	if criticalAddonsEnabled && len(*nodeTaints) != 0 {
+		return nil, fmt.Errorf("Only one attribute could be specified: either `only_critical_addons_enabled` or `node_taints`")
+	}
+
+	if criticalAddonsEnabled {
+		*nodeTaints = append(*nodeTaints, "CriticalAddonsOnly=true:NoSchedule")
+	}
 
 	t := raw["tags"].(map[string]interface{})
 
@@ -437,6 +452,7 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 			"orchestrator_version":         orchestratorVersion,
 			"proximity_placement_group_id": proximityPlacementGroupId,
 			"vnet_subnet_id":               vnetSubnetId,
+			"only_critical_addons_enabled": false,
 		},
 	}, nil
 }
