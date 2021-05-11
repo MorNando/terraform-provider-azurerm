@@ -1103,7 +1103,11 @@ resource "azurerm_kubernetes_cluster" "test" {
 func (KubernetesClusterResource) diskEncryptionConfig(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 provider "azurerm" {
-  features {}
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy = false
+    }
+  }
 }
 
 data "azurerm_client_config" "current" {}
