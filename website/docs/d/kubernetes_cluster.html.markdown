@@ -114,11 +114,15 @@ A `agent_pool_profile` block exports the following:
 
 * `enable_auto_scaling` - If the auto-scaler is enabled.
 
+* `enable_node_public_ip` - If the Public IPs for the nodes in this Agent Pool are enabled.
+
 * `min_count` - Minimum number of nodes for auto-scaling
 
 * `max_count` - Maximum number of nodes for auto-scaling
 
 * `name` - The name assigned to this pool of agents.
+
+* `node_public_ip_prefix_id` - Resource ID for the Public IP Addresses Prefix for the nodes in this Agent Pool.
 
 * `node_taints` - The list of Kubernetes taints which are applied to nodes in the agent pool
 
