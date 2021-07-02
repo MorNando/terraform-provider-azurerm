@@ -79,6 +79,21 @@ func SchemaDefaultNodePool() *pluginsdk.Schema {
 
 				"linux_os_config": schemaNodePoolLinuxOSConfig(),
 
+				"fips_enabled": {
+					Type:     pluginsdk.TypeBool,
+					Optional: true,
+					ForceNew: true,
+				},
+
+				"kubelet_disk_type": {
+					Type:     pluginsdk.TypeString,
+					Optional: true,
+					Computed: true,
+					ValidateFunc: validation.StringInSlice([]string{
+						string(containerservice.KubeletDiskTypeOS),
+					}, false),
+				},
+
 				"max_count": {
 					Type:     pluginsdk.TypeInt,
 					Optional: true,
@@ -551,6 +566,8 @@ func ConvertDefaultNodePoolToAgentPool(input *[]containerservice.ManagedClusterA
 			MaxCount:                  defaultCluster.MaxCount,
 			MinCount:                  defaultCluster.MinCount,
 			EnableAutoScaling:         defaultCluster.EnableAutoScaling,
+			EnableFIPS:                defaultCluster.EnableFIPS,
+			KubeletDiskType:           defaultCluster.KubeletDiskType,
 			Type:                      defaultCluster.Type,
 			OrchestratorVersion:       defaultCluster.OrchestratorVersion,
 			ProximityPlacementGroupID: defaultCluster.ProximityPlacementGroupID,
@@ -592,8 +609,10 @@ func ExpandDefaultNodePool(d *pluginsdk.ResourceData) (*[]containerservice.Manag
 
 	profile := containerservice.ManagedClusterAgentPoolProfile{
 		EnableAutoScaling:      utils.Bool(enableAutoScaling),
+		EnableFIPS:             utils.Bool(raw["fips_enabled"].(bool)),
 		EnableNodePublicIP:     utils.Bool(raw["enable_node_public_ip"].(bool)),
 		EnableEncryptionAtHost: utils.Bool(raw["enable_host_encryption"].(bool)),
+		KubeletDiskType:        containerservice.KubeletDiskType(raw["kubelet_disk_type"].(string)),
 		Name:                   utils.String(raw["name"].(string)),
 		NodeLabels:             nodeLabels,
 		NodeTaints:             nodeTaints,
@@ -910,6 +929,11 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 		enableAutoScaling = *agentPool.EnableAutoScaling
 	}
 
+	enableFIPS := false
+	if agentPool.EnableFIPS != nil {
+		enableFIPS = *agentPool.EnableFIPS
+	}
+
 	enableNodePublicIP := false
 	if agentPool.EnableNodePublicIP != nil {
 		enableNodePublicIP = *agentPool.EnableNodePublicIP
@@ -999,6 +1023,8 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 			"enable_auto_scaling":          enableAutoScaling,
 			"enable_node_public_ip":        enableNodePublicIP,
 			"enable_host_encryption":       enableHostEncryption,
+			"fips_enabled":                 enableFIPS,
+			"kubelet_disk_type":            string(agentPool.KubeletDiskType),
 			"max_count":                    maxCount,
 			"max_pods":                     maxPods,
 			"min_count":                    minCount,
