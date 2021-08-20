@@ -173,6 +173,13 @@ func SchemaDefaultNodePool() *pluginsdk.Schema {
 					}, false),
 				},
 
+				"ultra_ssd_enabled": {
+					Type:     pluginsdk.TypeBool,
+					ForceNew: true,
+					Default:  false,
+					Optional: true,
+				},
+
 				"vnet_subnet_id": {
 					Type:         pluginsdk.TypeString,
 					Optional:     true,
@@ -662,6 +669,10 @@ func ExpandDefaultNodePool(d *pluginsdk.ResourceData) (*[]containerservice.Manag
 		profile.OsDiskType = containerservice.OSDiskType(raw["os_disk_type"].(string))
 	}
 
+	if ultraSSDEnabled, ok := raw["ultra_ssd_enabled"]; ok {
+		profile.EnableUltraSSD = utils.Bool(ultraSSDEnabled.(bool))
+	}
+
 	if vnetSubnetID := raw["vnet_subnet_id"].(string); vnetSubnetID != "" {
 		profile.VnetSubnetID = utils.String(vnetSubnetID)
 	}
@@ -924,6 +935,11 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 		count = int(*agentPool.Count)
 	}
 
+	enableUltraSSD := false
+	if agentPool.EnableUltraSSD != nil {
+		enableUltraSSD = *agentPool.EnableUltraSSD
+	}
+
 	enableAutoScaling := false
 	if agentPool.EnableAutoScaling != nil {
 		enableAutoScaling = *agentPool.EnableAutoScaling
@@ -1037,6 +1053,7 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 			"os_disk_type":                 string(osDiskType),
 			"tags":                         tags.Flatten(agentPool.Tags),
 			"type":                         string(agentPool.Type),
+			"ultra_ssd_enabled":            enableUltraSSD,
 			"vm_size":                      vmSize,
 			"orchestrator_version":         orchestratorVersion,
 			"proximity_placement_group_id": proximityPlacementGroupId,
