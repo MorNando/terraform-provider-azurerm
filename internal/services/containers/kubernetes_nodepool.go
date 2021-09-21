@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/azure"
 	computeValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/compute/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/containers/validate"
+	networkValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/network/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tags"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
@@ -126,6 +127,7 @@ func SchemaDefaultNodePool() *pluginsdk.Schema {
 					Type:     pluginsdk.TypeMap,
 					ForceNew: true,
 					Optional: true,
+					Computed: true,
 					Elem: &pluginsdk.Schema{
 						Type: pluginsdk.TypeString,
 					},
@@ -191,6 +193,12 @@ func SchemaDefaultNodePool() *pluginsdk.Schema {
 					Optional:     true,
 					Computed:     true,
 					ValidateFunc: validation.StringIsNotEmpty,
+				},
+				"pod_subnet_id": {
+					Type:         pluginsdk.TypeString,
+					Optional:     true,
+					ForceNew:     true,
+					ValidateFunc: networkValidate.SubnetID,
 				},
 				"proximity_placement_group_id": {
 					Type:         pluginsdk.TypeString,
@@ -587,6 +595,7 @@ func ConvertDefaultNodePoolToAgentPool(input *[]containerservice.ManagedClusterA
 			Mode:                      defaultCluster.Mode,
 			NodeLabels:                defaultCluster.NodeLabels,
 			NodeTaints:                defaultCluster.NodeTaints,
+			PodSubnetID:               defaultCluster.PodSubnetID,
 			Tags:                      defaultCluster.Tags,
 			UpgradeSettings:           defaultCluster.UpgradeSettings,
 		},
@@ -667,6 +676,10 @@ func ExpandDefaultNodePool(d *pluginsdk.ResourceData) (*[]containerservice.Manag
 	profile.OsDiskType = containerservice.OSDiskTypeManaged
 	if osDiskType := raw["os_disk_type"].(string); osDiskType != "" {
 		profile.OsDiskType = containerservice.OSDiskType(raw["os_disk_type"].(string))
+	}
+
+	if podSubnetID := raw["pod_subnet_id"].(string); podSubnetID != "" {
+		profile.PodSubnetID = utils.String(podSubnetID)
 	}
 
 	if ultraSSDEnabled, ok := raw["ultra_ssd_enabled"]; ok {
@@ -1008,6 +1021,11 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 		osDiskType = agentPool.OsDiskType
 	}
 
+	podSubnetId := ""
+	if agentPool.PodSubnetID != nil {
+		podSubnetId = *agentPool.PodSubnetID
+	}
+
 	vnetSubnetId := ""
 	if agentPool.VnetSubnetID != nil {
 		vnetSubnetId = *agentPool.VnetSubnetID
@@ -1055,6 +1073,7 @@ func FlattenDefaultNodePool(input *[]containerservice.ManagedClusterAgentPoolPro
 			"type":                         string(agentPool.Type),
 			"ultra_ssd_enabled":            enableUltraSSD,
 			"vm_size":                      vmSize,
+			"pod_subnet_id":                podSubnetId,
 			"orchestrator_version":         orchestratorVersion,
 			"proximity_placement_group_id": proximityPlacementGroupId,
 			"upgrade_settings":             upgradeSettings,
